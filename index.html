@@ -1,0 +1,145 @@
+<!--
+=== THE FRONTEND ===
+
+This is the exact same frontend as the Django version.
+The only change is the comment below — it talks to FastAPI instead of Django.
+The frontend doesn't care what backend it talks to, as long as the
+API returns the same JSON format.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Manager (FastAPI)</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, sans-serif; max-width: 600px; margin: 40px auto; padding: 0 20px; color: #333; }
+        h1 { margin-bottom: 20px; }
+
+        .add-form { display: flex; gap: 8px; margin-bottom: 24px; }
+        .add-form input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 16px; }
+        .add-form button { padding: 10px 20px; background: #009688; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; }
+        .add-form button:hover { background: #00796b; }
+
+        .task-list { list-style: none; }
+        .task { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid #eee; border-radius: 6px; margin-bottom: 8px; }
+        .task.completed span { text-decoration: line-through; color: #999; }
+        .task input[type="checkbox"] { width: 20px; height: 20px; cursor: pointer; }
+        .task span { flex: 1; font-size: 16px; }
+        .task button { padding: 4px 12px; background: #ff4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+        .task button:hover { background: #cc0000; }
+
+        .log { margin-top: 32px; padding: 16px; background: #1e1e1e; color: #0f0; border-radius: 6px; font-family: monospace; font-size: 13px; max-height: 300px; overflow-y: auto; }
+        .log-title { color: #aaa; margin-bottom: 8px; }
+        .log-entry { margin-bottom: 4px; white-space: pre-wrap; }
+        .log-entry.request { color: #6cf; }
+        .log-entry.response { color: #0f0; }
+
+        .empty { color: #999; font-style: italic; padding: 20px 0; }
+    </style>
+</head>
+<body>
+
+    <h1>Task Manager <small style="color:#999; font-size:14px;">(FastAPI)</small></h1>
+
+    <form class="add-form" onsubmit="createTask(event)">
+        <input type="text" id="taskInput" placeholder="What needs to be done?" required>
+        <button type="submit">Add</button>
+    </form>
+
+    <ul class="task-list" id="taskList"></ul>
+
+    <div class="log">
+        <div class="log-title">Network Log (what the frontend sends to the backend):</div>
+        <div id="logEntries"></div>
+    </div>
+
+<script>
+const API_URL = '/api/tasks/';
+
+function log(type, message) {
+    const el = document.getElementById('logEntries');
+    const entry = document.createElement('div');
+    entry.className = `log-entry ${type}`;
+    entry.textContent = message;
+    el.appendChild(entry);
+    el.scrollTop = el.scrollHeight;
+}
+
+async function loadTasks() {
+    log('request', `GET ${API_URL}`);
+    const response = await fetch(API_URL);
+    const tasks = await response.json();
+    log('response', `Status ${response.status} — received ${tasks.length} task(s)`);
+    renderTasks(tasks);
+}
+
+async function createTask(event) {
+    event.preventDefault();
+    const input = document.getElementById('taskInput');
+    const title = input.value.trim();
+    if (!title) return;
+
+    const body = JSON.stringify({ title: title });
+    log('request', `POST ${API_URL}\nBody: ${body}`);
+
+    const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: body,
+    });
+
+    const newTask = await response.json();
+    log('response', `Status ${response.status} — created task #${newTask.id}`);
+
+    input.value = '';
+    loadTasks();
+}
+
+async function toggleTask(id, currentlyCompleted) {
+    const url = `${API_URL}${id}/`;
+    const body = JSON.stringify({ completed: !currentlyCompleted });
+    log('request', `PATCH ${url}\nBody: ${body}`);
+
+    const response = await fetch(url, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: body,
+    });
+
+    const updated = await response.json();
+    log('response', `Status ${response.status} — task #${id} completed=${updated.completed}`);
+    loadTasks();
+}
+
+async function deleteTask(id) {
+    const url = `${API_URL}${id}/`;
+    log('request', `DELETE ${url}`);
+    const response = await fetch(url, { method: 'DELETE' });
+    log('response', `Status ${response.status} — task #${id} deleted`);
+    loadTasks();
+}
+
+function renderTasks(tasks) {
+    const list = document.getElementById('taskList');
+    if (tasks.length === 0) {
+        list.innerHTML = '<li class="empty">No tasks yet. Add one above!</li>';
+        return;
+    }
+    list.innerHTML = tasks.map(task => `
+        <li class="task ${task.completed ? 'completed' : ''}">
+            <input type="checkbox"
+                   ${task.completed ? 'checked' : ''}
+                   onchange="toggleTask(${task.id}, ${task.completed})">
+            <span>${task.title}</span>
+            <button onclick="deleteTask(${task.id})">Delete</button>
+        </li>
+    `).join('');
+}
+
+loadTasks();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,16 @@
+# Virtual environment: rebuilt from requirements.txt on each machine
+venv/
+
+# Python's compiled cache files
+__pycache__/
+*.pyc
+
+# The database: it holds data, not code
+tasks.db
+
+# Secrets, if you ever add them
+.env
+
+# macOS and editor clutter
+.DS_Store
+.vscode/
